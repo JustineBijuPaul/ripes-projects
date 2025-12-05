@@ -1,322 +1,113 @@
 # Alignment Impact on Memory Performance — Ripes Demonstration
 
-A complete, step-by-step experiment showing how **aligned vs. misaligned memory accesses** affect performance, the pipeline, and exception behavior in RISC-V. This demonstration includes:
+A complete, step-by-step experiment showing how **aligned vs. misaligned memory accesses** affect performance, the pipeline, and exception behavior in RISC-V.
 
-* How aligned loads are fast
-* How misaligned loads trigger *extra memory operations*
-* How misalignment can even cause **traps** depending on CPU configuration
-* Why compilers insert padding and alignment directives
-
-This experiment ties in with your earlier Page-Fault and TLB studies, forming a complete view of memory-access performance.
+**Update for Ripes v2.3+:** Newer versions of Ripes strictly enforce alignment for word loads (`lw`). Misaligned accesses will **always trap**. This experiment demonstrates both the trap behavior and the "manual fix-up" cost that hardware or software must pay to handle misalignment.
 
 ---
 
-# 📁 Project Files
+## 📁 Project Files
 
 | File                        | Description                                                        |
 | --------------------------- | ------------------------------------------------------------------ |
-| `aligned_vs_misaligned.asm` | Demonstrates aligned and misaligned loads, including trap behavior |
-
-Load this file in Ripes and toggle “Support Misaligned Access” to observe two very different outcomes.
+| `aligned_vs_misaligned.asm` | Demonstrates aligned loads, trapping misaligned loads, and manual fix-ups |
 
 ---
 
-# 🎯 What This Demonstrates
+## 🎯 What This Demonstrates
 
 * **Aligned access (fast path)**
+  * Address = multiple of 4.
+  * L1 cache can fetch entire word in **one bus transaction**.
 
-  * Address = multiple of 4
-  * L1 cache can fetch entire word in **one bus transaction**
+* **Misaligned access (Exception)**
+  * In standard RISC-V (and Ripes v2.3+), a misaligned `lw` raises a **Load Address Misaligned** exception.
+  * This forces a trap to the OS, which is extremely expensive.
 
-* **Misaligned access (slow path)**
-  If CPU *supports* misalignment:
-
-  * Load requires *two* memory accesses → merging → stalls
-
-  If CPU *does NOT* support misalignment:
-
-  * CPU raises a **Load Address Misaligned** exception
-  * Pipeline flush → trap handler → software emulation → *extremely slow*
-
-* **Impact on Struct Layout & ABI**
-  Alignment is enforced across systems because misalignment hurts performance *and correctness*.
+* **Simulated Hardware Support (Slow Path)**
+  * If hardware supported misalignment, it would effectively do what we simulate manually:
+    * Fetch multiple parts.
+    * Shift and merge bytes.
+    * **Result:** 2-4x latency penalty compared to aligned loads.
 
 ---
 
-# 🔧 Ripes Setup Instructions
+## 🔧 Ripes Setup Instructions
 
-### Step 1 — Select Processor With Misalignment Options
-
+### Step 1 — Select Processor
 1. Open **Ripes**.
 2. Click CPU icon → Choose:
+   * `RV32I 5-stage` or `RV32IM 5-stage`
 
-   * `RV32I 5-stage`
-     or
-   * `RV32IM 5-stage`
-3. Go to **Processor Configuration** and find:
-   ✔️ *Support Misaligned Access* (toggle ON/OFF)
-
-### What These Modes Do:
-
-| Setting      | Behavior                                                              |
-| ------------ | --------------------------------------------------------------------- |
-| **Enabled**  | Misaligned loads are emulated in hardware → extra cycles in MEM stage |
-| **Disabled** | Misaligned loads trigger exceptions → trap handler runs               |
-
-You will test **both modes**.
-
-### Step 2 — Cache Settings
-
-Use default caches (1KB, 16B lines). Misalignment impacts happen *before* the cache hierarchy, so any cache size works.
+### Step 2 — Note on Misalignment
+* **Old Ripes (v2.2 and older):** Had a "Support Misaligned Access" toggle.
+* **New Ripes (v2.3+):** This toggle is removed. Misaligned word loads **always trap**.
+* We will simulate the "hardware support" cost using assembly instructions.
 
 ---
 
-# 📝 The Assembly Code
+## 📝 The Assembly Code Overview
 
+### 1. Aligned Load (Fast)
 ```asm
-.data
-    .align 4                 # Force alignment for the base address
-data_word:
-    .word 0xDEADBEEF         # Stored at an address ending in ...00
-
-.text
-.globl main
-main:
-    la s0, data_word
-
-    # -------------------------
-    # 1. Aligned Load (Fast)
-    # -------------------------
-    lw t0, 0(s0)            # Correctly aligned (address ends in .00)
-
-    # -------------------------
-    # 2. Misaligned Load (Slow or Trap)
-    # -------------------------
-    addi s1, s0, 1          # Now address ends in .01 (misaligned)
-    lw t1, 0(s1)            # Misaligned access!
-    
-    li a7, 10
-    ecall
+lw t0, 0(s0)   # Address ends in 00 -> 1 cycle memory access
 ```
 
----
-
-# 🧠 What the Code Does
-
-### ✔️ **Aligned Load**
-
-* `data_word` is aligned using `.align 4`
-* `s0` holds an address like `0x10000000` (ends in 00)
-* `lw t0, 0(s0)`:
-
-  * One memory request
-  * One cache access
-  * Fastest path through MEM stage
-
----
-
-### ❌ **Misaligned Load**
-
-When we compute:
-
-```
-addi s1, s0, 1
-```
-
-The new address ends in:
-
-```
-...0001
-```
-
-This makes **lw t1, 0(s1)** misaligned.
-
-What happens next depends on Ripes settings:
-
----
-
-# 🧪 Ripes Behavior: Two Modes
-
-## Mode A — “Support Misaligned Access” ENABLED
-
-(Realistic for Linux-capable RISC-V cores)
-
-### Hardware performs:
-
-* 1st memory access: fetch high bytes of word
-* 2nd memory access: fetch low bytes of next word
-* Internal shift + merge
-* Pipeline stalls for an **extra cycle or two**
-
-### In the Ripes Pipeline View:
-
-* `lw t1, 0(s1)` sits in the **MEM** stage longer
-* A bubble inserted behind it
-* Entire pipeline slows for that instruction
-
-### Expected Statistics:
-
-| Access Type   | Latency                                 |
-| ------------- | --------------------------------------- |
-| Aligned lw    | 1 × L1 access                           |
-| Misaligned lw | 2 × L1 accesses + merging (≈ 2× slower) |
-
----
-
-## Mode B — “Support Misaligned Access” DISABLED
-
-(Realistic for microcontrollers / embedded cores)
-
-### CPU detects misalignment ⇒ raises **exception**
-
-Behavior is:
-
-1. Pipeline flushes
-2. `mcause` = Load Address Misaligned
-3. Jump to `mtvec`
-4. Trap handler runs (see your Section 6 experiment!)
-5. OS or handler must emulate the load byte-by-byte:
-
-   * `lb`
-   * `lb`
-   * `sll`
-   * `or`
-
-### Performance impact:
-
-| Operation                        | Approx Cost                    |
-| -------------------------------- | ------------------------------ |
-| Normal lw                        | ~3 cycles                      |
-| Misaligned lw + software handler | *Hundreds–thousands* of cycles |
-
-Huge penalty.
-
----
-
-# 📊 Observing Performance Differences
-
-### With Misalignment Enabled:
-
-Look at:
-
-* **Pipeline View:**
-
-  * MEM stage holds the misaligned load longer
-
-* **D-Cache Statistics:**
-
-  * Two read requests for one lw
-  * Higher hit/miss activity
-
-### With Misalignment Disabled:
-
-* Execution jumps to “trap handler”
-* `mepc` updated
-* Software must emulate misaligned load (massive slowdown)
-
----
-
-# 🧪 Experiment Workflow
-
-### 1️⃣ Run With Aligned Load Only
-
-Comment out misaligned access:
-
+### 2. Misaligned Load (Trap)
 ```asm
-# addi s1, s0, 1
-# lw t1, 0(s1)
+lw t1, 0(s1)   # Address ends in 01 -> TRAP (Load Address Misaligned)
 ```
+In the provided code, this line is commented out so you can run the manual simulation. Uncomment it to observe the exception.
 
-Record:
-
-* Total cycles
-* CPI
-* D-cache reads (should be 1)
-
----
-
-### 2️⃣ Run With Misaligned Access (Hardware Enabled)
-
-Enable misaligned access:
-
-* Toggle ON "Support Misaligned Access"
-* Re-run full program
-
-Record:
-
-* D-cache reads → should be **2**
-* Extra MEM-stage stall visible
+### 3. Manual Fix-up (Simulated Slow Path)
+To emulate what happens when hardware (or a trap handler) fixes the misalignment:
+```asm
+lbu t2, 0(s1)
+lbu t3, 1(s1)
+lbu t4, 2(s1)
+lb  t5, 3(s1)
+sll ...
+or  ...
+```
+This reconstructs the word but requires **4 memory accesses** and ALU operations, proving why misalignment hurts performance.
 
 ---
 
-### 3️⃣ Run With Misaligned Access (Hardware Disabled)
+## 🧪 Experiment Workflow
 
-Toggle OFF “Support Misaligned Access”
+### Experiment 1: Aligned vs. Manual Fix-up
+1. Load `aligned_vs_misaligned.asm`.
+2. Run the program.
+3. Compare the **Aligned Load** section vs. the **Simulated Misaligned Load** section.
+   * **Aligned:** 1 instruction, 1 memory access.
+   * **Misaligned (Simulated):** ~10 instructions, 4 memory accesses.
+4. **Conclusion:** Misalignment increases instruction count and memory traffic significantly.
 
-* Run program
-* Should trap to handler or crash (if handler not implemented)
-
-Observe:
-
-* Control goes to `mtvec`
-* `mcause` contains “Load Address Misaligned”
-* Execution resumes (or halts depending on handler)
-
----
-
-# 📈 Summary: Why Alignment Matters
-
-### 🧩 Why aligned loads are fast:
-
-* One address
-* One bus request
-* One cache access
-* No shift/merge required
-
-### 🔥 Why misaligned loads are slow:
-
-* Word spans two lines
-* Two memory accesses
-* Shift + merge
-* Increased latency
-* Possible trap
-* Possible software emulation
-* Massive slowdown
-
-### 🛠 Why compilers enforce alignment:
-
-* ABI rules require structs and arrays to be aligned
-* Misaligned fields cause slowdowns
-* Padding bytes avoid misalignment
+### Experiment 2: Trigger the Trap
+1. Uncomment the line `# lw t1, 0(s1)`.
+2. Run the program.
+3. Observe that execution **stops** (or jumps to a trap handler if configured).
+4. Check the **Processor Status**:
+   * `mcause` register will show exception code `4` (Load Address Misaligned).
+   * This confirms that the hardware refuses to handle the request directly.
 
 ---
 
-# 📚 Key Concepts
+## 📈 Summary: Why Alignment Matters
 
-| Concept           | Explanation                                     |
-| ----------------- | ----------------------------------------------- |
-| Aligned access    | Address multiple of word size (4 bytes)         |
-| Misaligned access | Address not divisible by 4                      |
-| Bus transaction   | L1 cache fetch of 32 bits                       |
-| Trap handler      | Privileged-mode routine handling faults         |
-| Shift-merge logic | Hardware mechanism to assemble misaligned word  |
-| ABI alignment     | Compiler and OS rules ensuring efficient access |
+### 🧩 Aligned
+* One bus request.
+* Zero overhead.
 
----
+### 🔥 Misaligned
+* **If Trapped:** Thousands of cycles for OS handler.
+* **If Hardware Supported:** Multiple bus requests + stall cycles for merging.
+* **Result:** Always slower.
 
-# 🚀 Extensions
-
-Try:
-
-* Misaligned **stores** (even worse on some hardware)
-* Accessing arrays with stride 1, 2, 3, 4
-* Misaligned struct fields
-* Emulating multi-byte loads using `lb` / `lbu`
-* Changing cache block size to bigger/smaller values
+### 🛠 Compiler Strategy
+Compilers add **padding** to structs to ensure every 4-byte integer starts at an address divisible by 4, avoiding these penalties entirely.
 
 ---
 
-# 📄 License
-
-This alignment-performance demonstration is designed for RISC-V architecture and OS courses.
-You are free to modify, extend, and integrate it into your Ripes labs or teaching material.
+## 📄 License
+This material is designed for RISC-V architecture education. Free to use and modify.
