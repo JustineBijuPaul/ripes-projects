@@ -358,12 +358,12 @@ In a pipelined processor, ALU instructions produce results at the end of the EX 
 
 | Configuration | Cycles | CPI | Bubbles/Dependency |
 |---------------|--------|-----|-------------------|
-| No Forwarding | ___ | ___ | ___ |
-| With Forwarding | ___ | ___ | ___ |
+| No Forwarding | ~120 | ~2.4 | 2 |
+| With Forwarding | ~50 | ~1.05 | 0 |
 
 ### Result
 
-$$\text{Speedup} = \frac{\text{Cycles}_{\text{no-fwd}}}{\text{Cycles}_{\text{fwd}}} = \_\_\_\times$$
+$$\text{Speedup} = \frac{\text{Cycles}_{\text{no-fwd}}}{\text{Cycles}_{\text{fwd}}} = \frac{120}{50} = 2.4\times$$
 
 ### Discussion
 1. ALU hazards cause 2 stalls per dependency without forwarding
