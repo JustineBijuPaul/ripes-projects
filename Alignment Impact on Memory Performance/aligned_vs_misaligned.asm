@@ -36,9 +36,9 @@ main:
     lb   t5, 3(s1)          # Load byte 3 (signed, preserves sign of word)
 
     # Reconstruct 32-bit word manually (Little Endian)
-    sll  t3, t3, 8
-    sll  t4, t4, 16
-    sll  t5, t5, 24
+    slli t3, t3, 8
+    slli t4, t4, 16
+    slli t5, t5, 24
 
     or   t2, t2, t3
     or   t2, t2, t4
