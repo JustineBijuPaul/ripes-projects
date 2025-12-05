@@ -4,7 +4,7 @@ src_str:
     .string "RISC-V Architecture is Powerful! This is a long string used to demonstrate the performance difference between byte-by-byte copy and SWAR optimized copy."
     .align 4
 dst_buf:
-    .space 256
+    .zero 256
 
 .text
 .globl main
