@@ -3,19 +3,19 @@
 
 page1:
     .word 1
-    .space 4092         # Fill remainder of page 1 (total 4096 bytes)
+    .zero 4092          # Fill remainder of page 1 (total 4096 bytes)
 
 page2:
     .word 2
-    .space 4092         # Page 2
+    .zero 4092          # Page 2
 
 page3:
     .word 3
-    .space 4092         # Page 3
+    .zero 4092          # Page 3
 
 page4:
     .word 4
-    .space 4092         # Page 4
+    .zero 4092          # Page 4
 
 page5:
     .word 5             # Page 5 (5th distinct page)
