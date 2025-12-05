@@ -1,17 +1,19 @@
 .data
 # Simulate heap nodes scattered across memory
-node1_value: .word 10
-node1_next:  .word node2_value
+# Define nodes in reverse order to avoid forward references
 
-.space 256              # separation (fragmentation)
+node3_value: .word 30
+node3_next:  .word 0      # End of list
+
+.zero 256
 
 node2_value: .word 20
 node2_next:  .word node3_value
 
-.space 256
+.zero 256              # separation (fragmentation)
 
-node3_value: .word 30
-node3_next:  .word 0      # End of list
+node1_value: .word 10
+node1_next:  .word node2_value
 
 .text
 .globl main

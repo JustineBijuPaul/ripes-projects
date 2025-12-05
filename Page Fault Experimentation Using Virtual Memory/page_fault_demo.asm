@@ -1,34 +1,118 @@
+.data
+    .align 4
+# Simulated page table: each entry is 8 bytes (4 for virtual base, 4 for valid flag)
+# In a real system, the MMU handles this in hardware
+page_table:
+    .word 0x10010000, 1     # Page 0: valid (mapped to data segment)
+    .word 0x10011000, 1     # Page 1: valid
+    .word 0x00000000, 0     # Page 2: invalid (unmapped - will cause "fault")
+    .word 0xDEAD0000, 0     # Page 3: invalid (unmapped)
+
+fault_flag:    .word 0     # 0 = no fault, 1 = fault occurred
+fault_addr:    .word 0     # Address that caused the fault
+access_count:  .word 0     # Number of successful accesses
+fault_count:   .word 0     # Number of faults
+
+valid_data:    .word 0xCAFEBABE   # Some valid data to read
+
+msg_ok:        .string "Access OK\n"
+msg_fault:     .string "PAGE FAULT!\n"
+
 .text
 .globl main
 
 main:
-    # 1. Register Trap Handler
-    la   t0, trap_handler   # Load address of trap handler
-    csrw mtvec, t0          # Set mtvec to point to trap_handler
+    # Initialize counters
+    la   s0, access_count
+    sw   zero, 0(s0)
+    la   s1, fault_count
+    sw   zero, 0(s1)
 
-    # 2. Good Access (should succeed)
-    li   s0, 0x10000000     # Assume this is a valid mapped data segment
-    lw   t1, 0(s0)          # Normal load; no exception expected
+    # ----- Test 1: Access valid mapped address -----
+    la   a0, valid_data         # Load address of valid data
+    jal  ra, check_and_access   # Check page table and access
+    
+    # ----- Test 2: Access another valid address -----
+    la   a0, page_table         # Access page table itself (valid)
+    jal  ra, check_and_access
 
-    # 3. Bad Access (Triggers Exception: Page/Access Fault)
-    li   s1, 0x00000000     # Null pointer (assumed unmapped)
-    lw   t2, 0(s1)          # *** EXCEPTION TRIGGERED HERE ***
+    # ----- Test 3: Access unmapped address (simulated page fault) -----
+    li   a0, 0x00000000         # Null pointer (will be marked invalid)
+    jal  ra, check_and_access   # This will trigger simulated fault
 
-    # 4. Continuation Point
-    # If the trap handler works correctly, execution resumes here
-    li   t3, 42             # We expect this to execute after mret
-    li   a7, 10
-    ecall                   # End program (semantics depend on Ripes)
+    # ----- Test 4: Access another bad address -----
+    li   a0, 0xDEAD0000         # Bad address
+    jal  ra, check_and_access   # This will trigger simulated fault
 
-# --- Trap Handler (Machine Mode) ---
-.align 4
-trap_handler:
-    # In a real OS, we would inspect mcause to check the exception type
-    csrr t5, mcause         # Read cause of trap (optional: for debugging)
+    # ----- Print results -----
+    # Load final counts
+    la   t0, access_count
+    lw   s2, 0(t0)              # s2 = successful accesses
+    la   t1, fault_count
+    lw   s3, 0(t1)              # s3 = faults
 
-    # We must SKIP the faulting instruction, or we'd fault forever.
-    csrr t6, mepc           # t6 = address of faulting instruction (lw t2, 0(s1))
-    addi t6, t6, 4          # Advance PC by 4 bytes (skip over that instruction)
-    csrw mepc, t6           # Update MEPC so we resume AFTER bad load
+    # Exit program
+    li   a7, 93                 # Ripes exit syscall
+    li   a0, 0                  # Exit code 0
+    ecall
 
-    mret                    # Return from trap to main program
+# ============================================================
+# Subroutine: check_and_access
+# Simulates MMU page table lookup before memory access
+# Input: a0 = address to access
+# ============================================================
+check_and_access:
+    addi sp, sp, -8
+    sw   ra, 0(sp)
+    sw   a0, 4(sp)
+
+    # Check if address is in valid range (simplified check)
+    # We consider addresses in 0x10010000-0x10012000 as "mapped"
+    li   t0, 0x10010000
+    li   t1, 0x10012000
+    
+    blt  a0, t0, page_fault     # Below valid range -> fault
+    bge  a0, t1, page_fault     # Above valid range -> fault
+
+    # Valid access - perform the load
+valid_access:
+    lw   t2, 0(a0)              # Actual memory access
+    
+    # Increment success counter
+    la   t3, access_count
+    lw   t4, 0(t3)
+    addi t4, t4, 1
+    sw   t4, 0(t3)
+    
+    j    access_done
+
+page_fault:
+    # Simulated page fault handler
+    # In a real OS, this would:
+    # 1. Save processor state
+    # 2. Look up the page in swap/disk
+    # 3. Load page into memory
+    # 4. Update page table
+    # 5. Retry the instruction
+    
+    # Record the fault
+    la   t3, fault_flag
+    li   t4, 1
+    sw   t4, 0(t3)
+    
+    la   t3, fault_addr
+    sw   a0, 0(t3)              # Store faulting address
+    
+    # Increment fault counter
+    la   t3, fault_count
+    lw   t4, 0(t3)
+    addi t4, t4, 1
+    sw   t4, 0(t3)
+    
+    # In simulation, we just skip the access (like a fault handler would)
+    
+access_done:
+    lw   ra, 0(sp)
+    lw   a0, 4(sp)
+    addi sp, sp, 8
+    ret
