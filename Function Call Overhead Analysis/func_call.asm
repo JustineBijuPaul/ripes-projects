@@ -90,4 +90,4 @@ func:
     lw    ra, 4(x2)         # restore ra
     addi  x2, x2, 8         # sp += 8
 
-    jalr  x0, 0(ra)         # return; PC = ra
+    ret                     # return (pseudo for jalr x0, 0(ra))
