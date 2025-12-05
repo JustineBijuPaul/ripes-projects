@@ -1,0 +1,110 @@
+.text
+.globl main
+main:
+    li t0, 0
+
+    # 100 consecutive addi instructions stressing I-cache
+    # This large block of code will force I-cache evictions if the cache is small (e.g. 256B)
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+    addi t0, t0, 1
+
+    li a7, 10
+    ecall
