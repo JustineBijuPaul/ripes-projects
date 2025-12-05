@@ -33,19 +33,19 @@ loop_k:
     add t5, t5, t4
     slli t5, t5, 2
     add t6, s0, t5
-    lw t7, 0(t6)
+    lw a3, 0(t6)
 
     # Load B[k][j]
     # Address = BaseB + (k * N + j) * 4
-    mul t8, t4, t0
-    add t8, t8, t2
-    slli t8, t8, 2
-    add t9, s1, t8
-    lw t9, 0(t9)
+    mul a4, t4, t0
+    add a4, a4, t2
+    slli a4, a4, 2
+    add a5, s1, a4
+    lw a5, 0(a5)
 
     # sum += A[i][k] * B[k][j]
-    mul t7, t7, t9
-    add t3, t3, t7
+    mul a3, a3, a5
+    add t3, t3, a3
 
     addi t4, t4, 1
     j loop_k
