@@ -19,6 +19,7 @@ loop:
     lw   t2, 0(a0)      # 1. Load Start
     
     # --- THE FIX ---
+    
     # We move the pointer increment UP. 
     # This instruction does not depend on t2.
     # It executes while t2 is being fetched from memory.
